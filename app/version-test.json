@@ -1,5 +1,5 @@
 {
-    "versionCode":  99,
+    "versionCode":  100,
     "versionName":  "9.9 (prueba del aviso)",
     "notes":  "- Mis salidas: cada vez que activas el seguimiento en vivo se guarda la salida, aunque no haya cobertura.\n- Capa de satélite (España): fotos aéreas del IGN.\n- Pantalla completa en el mapa.",
     "url":  "https://appdistribution.firebase.google.com/testerapps/1:421191132891:android:0eae83b98112e09f47cefe"
