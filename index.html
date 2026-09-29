@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>En ruta · GPX Group Tracker</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root {
+    --bg: #121620; --panel: #1c2230; --text: #f2f4f8; --muted: #9aa3b5;
+    --red: #d9323e; --green: #43a047; --orange: #fb8c00;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  #app { display: flex; flex-direction: column; height: 100%; }
+  header { padding: 12px 16px; background: #151b2b; border-bottom: 1px solid #2b3345; }
+  header h1 { margin: 0; font-size: 1.15rem; font-weight: 700; }
+  #status { margin-top: 2px; font-size: .9rem; color: var(--muted); }
+  #status.live { color: #7ed37f; }
+  #status.stale { color: #ffb74d; }
+  #map { flex: 1; min-height: 0; }
+  #sos { display: none; padding: 14px 16px; background: var(--red); color: #fff; }
+  #sos strong { display: block; font-size: 1.2rem; }
+  #sos .actions { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+  #sos a { flex: 1; min-width: 140px; text-align: center; padding: 10px; border-radius: 10px;
+    background: #fff; color: var(--red); font-weight: 700; text-decoration: none; }
+  #card { display: none; padding: 10px 16px 14px; background: var(--panel); border-top: 1px solid #2b3345; }
+  #card .route { font-size: .85rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #card .km { font-size: 1.1rem; font-weight: 700; margin-top: 2px; }
+  #card .links { margin-top: 8px; font-size: .9rem; }
+  #card .links a { color: #8fb8ff; }
+  #message { display: none; position: absolute; inset: 0; z-index: 1000; background: var(--bg);
+    padding: 32px 24px; text-align: center; }
+  #message h2 { margin: 18vh 0 8px; font-size: 1.3rem; }
+  #message p { color: var(--muted); line-height: 1.45; max-width: 420px; margin: 0 auto; }
+  .rider { width: 34px; height: 34px; border-radius: 50%; background: #ffd23f; color: #111;
+    border: 3px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.5); display: flex; align-items: center;
+    justify-content: center; font-weight: 800; font-size: 16px; }
+  .rider.sos { background: var(--red); color: #fff; }
+  .leaflet-control-layers { font-size: 14px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1 id="title">Conectando…</h1>
+    <div id="status">Buscando la última posición</div>
+  </header>
+  <div id="sos">
+    <strong id="sosTitle">¡S.O.S.!</strong>
+    <span>Ha pedido ayuda desde la app: puede haberse caído o perdido.</span>
+    <div class="actions">
+      <a href="tel:112">Llamar al 112</a>
+      <a id="sosMaps" href="#" target="_blank" rel="noopener">Ver en Google Maps</a>
+    </div>
+  </div>
+  <div id="map"></div>
+  <div id="card">
+    <div class="route" id="routeName"></div>
+    <div class="km" id="km"></div>
+    <div class="links"><a id="mapsLink" href="#" target="_blank" rel="noopener">Abrir la posición en Google Maps</a></div>
+  </div>
+</div>
+<div id="message"><h2 id="msgTitle"></h2><p id="msgText"></p></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
+<script src="config.js"></script>
+<script>
+"use strict";
+// Same scheme as the app (GroupCrypto): topic and keys derived from the key in the link,
+// [version=1][IV 16][AES-256-CBC][HMAC-SHA256 32]. The key after "#" never reaches any server.
+const SHARE_TOPIC_ROOT = "gpxgt/v1/share/";
+const STALE_MS = 2 * 60 * 1000;
+const NO_DATA_MS = 12000;
+const $ = id => document.getElementById(id);
+const enc = new TextEncoder();
+
+function showMessage(title, text) {
+  $("msgTitle").textContent = title;
+  $("msgText").textContent = text;
+  $("message").style.display = "block";
+}
+const notActive = () => showMessage("Este enlace ya no está activo",
+  "Ha caducado o se ha dejado de compartir la ubicación. Si lo necesitas, pide un enlace nuevo.");
+
+async function sha256(text) { return new Uint8Array(await crypto.subtle.digest("SHA-256", enc.encode(text))); }
+const hex = bytes => Array.from(bytes, b => b.toString(16).padStart(2, "0")).join("");
+
+async function deriveKeys(secret) {
+  const topic = SHARE_TOPIC_ROOT + hex(await sha256("gpxgt-topic:" + secret)).slice(0, 32);
+  const encKey = await crypto.subtle.importKey("raw", await sha256("gpxgt-enc:" + secret), { name: "AES-CBC" }, false, ["decrypt"]);
+  const macKey = await crypto.subtle.importKey("raw", await sha256("gpxgt-mac:" + secret), { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
+  return { topic, encKey, macKey };
+}
+
+async function decrypt(keys, bytes) {
+  if (bytes.length < 1 + 16 + 16 + 32 || bytes[0] !== 1) return null;
+  const body = bytes.slice(0, bytes.length - 32);
+  const tag = bytes.slice(bytes.length - 32);
+  if (!await crypto.subtle.verify("HMAC", keys.macKey, tag, body)) return null;
+  const plain = await crypto.subtle.decrypt({ name: "AES-CBC", iv: body.slice(1, 17) }, keys.encKey, body.slice(17));
+  return JSON.parse(new TextDecoder().decode(plain));
+}
+
+function ago(ms) {
+  const s = Math.max(0, Math.round(ms / 1000));
+  if (s < 60) return `hace ${s} s`;
+  const m = Math.round(s / 60);
+  if (m < 60) return `hace ${m} min`;
+  const h = Math.floor(m / 60);
+  return `hace ${h} h ${m % 60} min`;
+}
+const km = m => (m / 1000).toLocaleString("es-ES", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+// --- Map: OpenStreetMap, or aerial photos of Spain (PNOA, IGN) ---
+const map = L.map("map", { zoomControl: true }).setView([40.4168, -3.7038], 6);
+const osm = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom: 19, attribution: "© OpenStreetMap contributors" }).addTo(map);
+const pnoa = L.tileLayer("https://www.ign.es/wmts/pnoa-ma?request=GetTile&service=WMTS&version=1.0.0" +
+  "&layer=OI.OrthoimageCoverage&style=default&tilematrixset=GoogleMapsCompatible&format=image/jpeg" +
+  "&tilematrix={z}&tilerow={y}&tilecol={x}", { maxZoom: 20, attribution: "PNOA cedido por © Instituto Geográfico Nacional" });
+L.control.layers({ "Mapa": osm, "Satélite (España)": pnoa }, null, { position: "topright" }).addTo(map);
+
+let marker = null, routeLayer = null, framed = false, last = null;
+
+function drawRoutes(data) {
+  if (routeLayer) { routeLayer.remove(); routeLayer = null; }
+  if (!data || !data.routes || !data.routes.length) return;
+  routeLayer = L.layerGroup(data.routes.flatMap(r => [
+    L.polyline(r.points, { color: "#000", weight: 8, opacity: .7 }),
+    L.polyline(r.points, { color: r.color || "#d9323e", weight: 5 })
+  ])).addTo(map);
+  if (!last) map.fitBounds(L.featureGroup(routeLayer.getLayers()).getBounds(), { padding: [24, 24] });
+}
+
+function render() {
+  const p = last;
+  if (!p) return;
+  const now = Date.now();
+  if (p.expiresAt > 0 && now > p.expiresAt) { notActive(); return; }
+  $("title").textContent = "Siguiendo a " + p.name;
+  const age = now - p.t;
+  const speed = p.speed > 0.5 ? ` · ${Math.round(p.speed * 3.6)} km/h` : "";
+  const status = $("status");
+  if (age > STALE_MS) {
+    status.textContent = `Sin señal ${ago(age)} (puede estar sin cobertura). Última posición en el mapa.`;
+    status.className = "stale";
+  } else {
+    status.textContent = `En directo · actualizado ${ago(age)}${speed}`;
+    status.className = "live";
+  }
+  const gmaps = `https://www.google.com/maps?q=${p.lat},${p.lon}`;
+  $("mapsLink").href = gmaps;
+  $("sosMaps").href = gmaps;
+  $("sos").style.display = p.sos ? "block" : "none";
+  $("sosTitle").textContent = `¡S.O.S.! ${p.name}`;
+  $("card").style.display = "block";
+  $("routeName").textContent = p.route || "";
+  $("km").textContent = p.route == null ? "Sin ruta cargada"
+    : !p.started ? "Aún no ha empezado la ruta"
+    : `${km(p.doneM)} km hechos · ${km(Math.max(0, p.totalM - p.doneM))} km quedan`;
+
+  const icon = L.divIcon({ className: "", iconSize: [34, 34], iconAnchor: [17, 17],
+    html: `<div class="rider${p.sos ? " sos" : ""}"></div>` });
+  if (!marker) marker = L.marker([p.lat, p.lon], { icon }).addTo(map);
+  else { marker.setLatLng([p.lat, p.lon]); marker.setIcon(icon); }
+  marker.getElement().querySelector(".rider").textContent = (p.name || "?").trim().charAt(0).toUpperCase();
+  if (!framed) {
+    framed = true;
+    setTimeout(() => { map.invalidateSize(); map.setView([p.lat, p.lon], 14); }, 50);
+  }
+  // The SOS banner and the km card change the map's height: resize it and, on an SOS, go to the rider
+  if (p.sos !== shownSos) {
+    shownSos = p.sos;
+    setTimeout(() => {
+      map.invalidateSize();
+      if (p.sos) map.setView([p.lat, p.lon], Math.max(map.getZoom(), 15));
+    }, 50);
+  }
+}
+let shownSos = false;
+setInterval(render, 5000);   // keep "hace X" and the expiry up to date
+
+async function start() {
+  const secret = decodeURIComponent(location.hash.slice(1)).trim().toUpperCase();
+  if (!/^[0-9A-Z]{16,40}$/.test(secret)) {
+    showMessage("Enlace incompleto", "Abre el enlace completo que te han enviado, tal cual, con todo lo que va después de «#».");
+    return;
+  }
+  if (!window.crypto || !crypto.subtle) {
+    showMessage("Navegador no compatible", "Abre el enlace con Chrome, Safari o Firefox actualizados.");
+    return;
+  }
+  const keys = await deriveKeys(secret);
+  const cfg = window.GPXGT_CONFIG;
+  const client = mqtt.connect(cfg.brokerUrl, { username: cfg.username, password: cfg.password,
+    reconnectPeriod: 5000, connectTimeout: 15000, clean: true });
+  let gotPosition = false;
+  client.on("connect", () => {
+    client.subscribe([keys.topic, keys.topic + "/route"], { qos: 1 });
+    setTimeout(() => { if (!gotPosition) notActive(); }, NO_DATA_MS);
+  });
+  client.on("error", e => { $("status").textContent = "Error de conexión: " + e.message; });
+  client.on("offline", () => { $("status").textContent = "Sin conexión a internet, reintentando…"; });
+  client.on("message", async (topic, payload) => {
+    const bytes = new Uint8Array(payload);
+    if (topic === keys.topic + "/route") {
+      if (bytes.length === 0) { drawRoutes(null); return; }
+      const data = await decrypt(keys, bytes).catch(() => null);
+      if (data) drawRoutes(data);
+      return;
+    }
+    if (bytes.length === 0) { gotPosition = true; notActive(); return; }   // sharing was stopped
+    const p = await decrypt(keys, bytes).catch(() => null);
+    if (!p) return;
+    gotPosition = true;
+    $("message").style.display = "none";
+    last = p;
+    render();
+  });
+}
+start();
+</script>
+</body>
+</html>
