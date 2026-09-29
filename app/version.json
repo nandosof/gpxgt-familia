@@ -1,6 +1,6 @@
 {
-    "versionCode":  4,
-    "versionName":  "2.2",
-    "notes":  "- Mis salidas: cada vez que activas el seguimiento en vivo se guarda la salida, aunque no haya cobertura.\n- Capa de satélite (España): fotos aéreas del IGN.\n- Pantalla completa en el mapa.",
+    "versionCode":  5,
+    "versionName":  "2.3",
+    "notes":  "- Compartir con la familia: botón en el mapa que manda por WhatsApp un enlace para que tu familia vea en el navegador, sin instalar nada, dónde vas, la ruta y los km. Solo tu posición. Dura 2 horas, 24 horas o mientras estés en ruta; si lanzas un S.O.S., lo ven en rojo con botón para llamar al 112.\n- Aviso de versión nueva: a partir de ahora la app te avisa al abrirla cuando haya una versión nueva para descargar.",
     "url":  "https://appdistribution.firebase.google.com/testerapps/1:421191132891:android:0eae83b98112e09f47cefe"
 }
