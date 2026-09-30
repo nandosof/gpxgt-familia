@@ -1,6 +1,6 @@
 {
-    "versionCode":  5,
-    "versionName":  "2.3",
-    "notes":  "- Compartir con la familia: botón en el mapa que manda por WhatsApp un enlace para que tu familia vea en el navegador, sin instalar nada, dónde vas, la ruta y los km. Solo tu posición. Dura 2 horas, 24 horas o mientras estés en ruta; si lanzas un S.O.S., lo ven en rojo con botón para llamar al 112.\n- Aviso de versión nueva: a partir de ahora la app te avisa al abrirla cuando haya una versión nueva para descargar.",
+    "versionCode":  6,
+    "versionName":  "2.4",
+    "notes":  "- Ruta más clara: flechas del sentido sobre la línea y banderas de Inicio y Fin. Tocando la de Inicio, Google Maps te lleva hasta la salida.\n- El seguimiento en vivo ya no se para al salir del mapa (para mirar Ajustes u otra cosa). Se para con el botón del mapa o con «Parar» en la notificación, y si se te olvida, avisa a los 45 minutos sin moverte.\n- Pantalla completa con los km y el tiempo de la salida; el panel de km también muestra el tiempo.\n- Zoom más cerca a más de 50 km/h, sin saltos de zoom.\n- Arreglado: el mapa dejaba de seguirte y de girar tras usar los botones + / −.\n- S.O.S. a la familia a los 5 minutos (por si es una caída sin importancia), pasar la administración del grupo a otro miembro, pantalla fija en vertical u horizontal (Ajustes) y nombres repetidos numerados.",
     "url":  "https://appdistribution.firebase.google.com/testerapps/1:421191132891:android:0eae83b98112e09f47cefe"
 }
