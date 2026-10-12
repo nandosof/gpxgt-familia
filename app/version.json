@@ -1,6 +1,6 @@
 {
-    "versionCode":  7,
-    "versionName":  "2.5",
-    "notes":  "- Versión gratis y Premium: el S.O.S. y salir en grupo siguen siendo gratis. Son Premium el satélite, compartir con la familia, más de un grupo propio, el historial completo con exportar GPX y el aviso de rezagado. Como probador tienes Premium gratis; en Ajustes → «Versión» puedes probar cómo queda la versión gratis y volver cuando quieras.\n- Aviso de rezagado: el móvil vibra y te avisa si alguien del grupo va 3 km por detrás en la ruta o lleva 10 minutos parado mientras tú sigues. Se ajusta en Ajustes (2, 3 o 5 km).\n- El aviso de versión nueva sale también al volver a la app, sin tener que cerrarla.",
+    "versionCode":  8,
+    "versionName":  "2.6",
+    "notes":  "- Avisos por voz: dice en voz alta si te sales de la ruta, si alguien se queda atrás o lanza un S.O.S. Llega al intercomunicador del casco. Se activa en Ajustes, con «Probar voz».\n- Volver por donde he venido: en el panel de rutas del mapa, con el seguimiento en vivo, convierte lo recorrido en una ruta de vuelta para todo el grupo.\n- Puntos de reagrupamiento: el administrador mantiene pulsado el mapa para marcar dónde esperarse. Todos reciben un aviso cuando llega el primero y cuando estáis todos.\n- Detección de caídas: tras un golpe fuerte en marcha, si te quedas quieto con la moto en el suelo, suena una alarma y pregunta «¿Te has caído?». Si no respondes en 60 s, envía el S.O.S. al grupo. Los baches y pararte con la moto de pie no cuentan. Viene apagada; actívala en Ajustes y usa «Probar», que no envía nada. Apunta un registro de golpes: compartidlo desde Ajustes después de salir por pista.",
     "url":  "https://appdistribution.firebase.google.com/testerapps/1:421191132891:android:0eae83b98112e09f47cefe"
 }
