@@ -1,6 +1,6 @@
 {
-    "versionCode":  8,
-    "versionName":  "2.6",
-    "notes":  "- Avisos por voz: dice en voz alta si te sales de la ruta, si alguien se queda atrás o lanza un S.O.S. Llega al intercomunicador del casco. Se activa en Ajustes, con «Probar voz».\n- Volver por donde he venido: en el panel de rutas del mapa, con el seguimiento en vivo, convierte lo recorrido en una ruta de vuelta para todo el grupo.\n- Puntos de reagrupamiento: el administrador mantiene pulsado el mapa para marcar dónde esperarse. Todos reciben un aviso cuando llega el primero y cuando estáis todos.\n- Detección de caídas: tras un golpe fuerte en marcha, si te quedas quieto con la moto en el suelo, suena una alarma y pregunta «¿Te has caído?». Si no respondes en 60 s, envía el S.O.S. al grupo. Los baches y pararte con la moto de pie no cuentan. Viene apagada; actívala en Ajustes y usa «Probar», que no envía nada. Apunta un registro de golpes: compartidlo desde Ajustes después de salir por pista.",
+    "versionCode":  9,
+    "versionName":  "2.6.1",
+    "notes":  "- Aviso al activar la detección de caídas: antes de activarla hay que aceptar que es una ayuda para que el grupo se entere antes, no un servicio de emergencias. Puede no detectar una caída o no enviar el aviso (sin cobertura, sin batería, móvil apagado o ahorro de batería), y el S.O.S. llega solo al grupo, no al 112. En una emergencia, llamad al 112.",
     "url":  "https://appdistribution.firebase.google.com/testerapps/1:421191132891:android:0eae83b98112e09f47cefe"
 }
