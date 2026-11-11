@@ -23,6 +23,8 @@
   #map { flex: 1; min-height: 0; }
   #sos { display: none; padding: 14px 16px; background: var(--red); color: #fff; }
   #sos strong { display: block; font-size: 1.2rem; }
+  #sos .help { display: block; margin-top: 6px; font-size: .95rem; }
+  #sos .help b { white-space: nowrap; }
   #sos .actions { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
   #sos a { flex: 1; min-width: 140px; text-align: center; padding: 10px; border-radius: 10px;
     background: #fff; color: var(--red); font-weight: 700; text-decoration: none; }
@@ -51,8 +53,9 @@
   <div id="sos">
     <strong id="sosTitle">¡S.O.S.!</strong>
     <span>Ha pedido ayuda desde la app: puede haberse caído o perdido.</span>
+    <span id="sosHelp" class="help"></span>
     <div class="actions">
-      <a href="tel:112">Llamar al 112</a>
+      <a id="sosCall" href="tel:112">Llamar al 112</a>
       <a id="sosMaps" href="#" target="_blank" rel="noopener">Ver en Google Maps</a>
     </div>
   </div>
@@ -105,6 +108,33 @@ async function decrypt(keys, bytes) {
   return JSON.parse(new TextDecoder().decode(plain));
 }
 
+// The emergency number of the country the family is in (the same table as the app, 11/11/2026): who reads
+// this page calls from their own phone, where the rider's local number (say 123 in Colombia) wouldn't work.
+// The country comes from the browser's language («es-CO»); without one, no number rather than a wrong one.
+const EMERGENCY = {
+  es: "112", ad: "112", pt: "112", fr: "112", ma: "15",
+  ar: "911", bo: "118", cl: "131", co: "123", ec: "911", py: "911", pe: "106", uy: "911", ve: "911",
+  cr: "911", cu: "104", sv: "911", gt: "122", hn: "911", ni: "128", pa: "911", do: "911", ht: "114", mx: "911"
+};
+function familyEmergencyNumber() {
+  for (const tag of navigator.languages || [navigator.language || ""]) {
+    const region = (tag.split("-")[1] || "").toLowerCase();
+    if (region) return EMERGENCY[region] || null;
+  }
+  return null;
+}
+function showEmergencyHelp(p) {
+  const number = familyEmergencyNumber();
+  const where = `${p.lat.toFixed(5)}, ${p.lon.toFixed(5)}`;
+  $("sosHelp").innerHTML = (number
+    ? `Si hace falta, llama al ${number} y da esta posición: `
+    : "Si hace falta, llama al número de emergencias de donde estés y da esta posición: ")
+    + `<b>${where}</b>`;
+  const call = $("sosCall");
+  call.style.display = number ? "" : "none";
+  if (number) { call.href = "tel:" + number; call.textContent = "Llamar al " + number; }
+}
+
 function ago(ms) {
   const s = Math.max(0, Math.round(ms / 1000));
   if (s < 60) return `hace ${s} s`;
@@ -155,6 +185,7 @@ function render() {
   const gmaps = `https://www.google.com/maps?q=${p.lat},${p.lon}`;
   $("mapsLink").href = gmaps;
   $("sosMaps").href = gmaps;
+  if (p.sos) showEmergencyHelp(p);
   $("sos").style.display = p.sos ? "block" : "none";
   $("sosTitle").textContent = `¡S.O.S.! ${p.name}`;
   $("card").style.display = "block";
